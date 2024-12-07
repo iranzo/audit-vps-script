@@ -24,8 +24,9 @@
 
 set -u
 
-API_ENDPOINT="https://your-server.com/api/report"
-CHECK_ID="$$-$(date +%s)" # PID-timestamp as unique check identifier
+VERSION="0.1.0"
+API_ENDPOINT="https://www.postb.in/1733584509087-4200752540491"
+CHECK_ID="$$" # Using just process ID as identifier
 
 RED='\033[1;31m'
 GREEN='\033[1;32m'
@@ -47,7 +48,7 @@ check_os() {
         exit 1
     fi
 
-    echo -e "${GREEN}Detected supported OS: ${os}${NC}"
+    echo -e "${GREEN}Detected supported OS: ${os}${NC}\n"
 }
 
 check_dependencies() {
@@ -73,6 +74,57 @@ check_dependencies() {
     fi
 
     echo -e "${GREEN}All required dependencies are installed${NC}\n"
+    return 0
+}
+
+send_to_api() {
+    # Only proceed if SESSION is set
+    if [ -n "${SESSION:-}" ]; then
+        local check_name="$1"
+        local status="$2"
+        local message="$3"
+        local substep="${4:-}"
+        
+        local data
+        if [ -n "$substep" ]; then
+            data=$(jq -n \
+                --arg session "$SESSION" \
+                --arg check "$check_name" \
+                --arg status "$status" \
+                --arg msg "$message" \
+                --arg sub "$substep" \
+                --arg id "$CHECK_ID" \
+                --arg version "$VERSION" \
+                '{session_id: $session, check_id: $id, check: $check, status: $status, message: $msg, substep: $sub, version: $version}')
+        else
+            data=$(jq -n \
+                --arg session "$SESSION" \
+                --arg check "$check_name" \
+                --arg status "$status" \
+                --arg msg "$message" \
+                --arg id "$CHECK_ID" \
+                --arg version "$VERSION" \
+                '{session_id: $session, check_id: $id, check: $check, status: $status, message: $msg, version: $version}')
+        fi
+
+        local response
+        # echo "Sending to endpoint: $API_ENDPOINT"
+        # echo "Sending data: $data"
+
+        # Add verbose output to curl
+        # response=$(curl -s -w "\n%{http_code}" -X POST \
+        # -H "Content-Type: application/json" \
+        # -d "$data" \
+        # "$API_ENDPOINT")
+        response=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" -d "$data" "$API_ENDPOINT")
+        local http_code
+        http_code=$(echo "$response" | tail -n1)
+        
+        if [ "$http_code" != "200" ]; then
+            echo -e "${RED}Failed to send status to API (HTTP $http_code)${NC}"
+            return 1
+        fi
+    fi
     return 0
 }
 
@@ -121,38 +173,7 @@ send_status() {
     local substep="${4:-}"
 
     print_status "$check_name" "$status" "$message" "$substep"
-
-    # Only send to API if SESSION is set
-    if [ -n "${SESSION:-}" ]; then
-        local data
-        if [ -n "$substep" ]; then
-            data=$(jq -n \
-                --arg session "$SESSION" \
-                --arg check "$check_name" \
-                --arg status "$status" \
-                --arg msg "$message" \
-                --arg sub "$substep" \
-                --arg id "$CHECK_ID" \
-                '{session_id: $session, check_id: $id, check: $check, status: $status, message: $msg, substep: $sub}')
-        else
-            data=$(jq -n \
-                --arg session "$SESSION" \
-                --arg check "$check_name" \
-                --arg status "$status" \
-                --arg msg "$message" \
-                --arg id "$CHECK_ID" \
-                '{session_id: $session, check_id: $id, check: $check, status: $status, message: $msg}')
-        fi
-
-        local response
-        response=$(curl -s -w "\n%{http_code}" -X POST -H "Content-Type: application/json" -d "$data" "$API_ENDPOINT")
-        local http_code
-        http_code=$(echo "$response" | tail -n1)
-        
-        if [ "$http_code" != "200" ]; then
-            print_status "$check_name" "error" "Failed to send status to API (HTTP $http_code)" "$substep"
-        fi
-    fi
+    send_to_api "$check_name" "$status" "$message" "$substep"
 }
 
 check_ufw() {
@@ -487,7 +508,6 @@ main() {
     check_os
     check_dependencies
   
-    echo -e "${CYAN}Starting checks...${NC}"
     if [ -n "${SESSION:-}" ]; then
         echo -e "Session ID: ${SESSION:-}"
     else
@@ -495,11 +515,15 @@ main() {
     fi
     echo
 
+    send_status "script" "running" "Starting security audit v${VERSION}"
+
     check_ufw
     check_ssh
     check_non_root_user
     check_unattended_upgrades
     check_fail2ban
+
+    send_status "script" "pass" "Security audit complete"
 }
 
 main "$@"
