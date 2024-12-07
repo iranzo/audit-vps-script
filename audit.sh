@@ -2,7 +2,7 @@
 
 # audit.sh
 #
-# This script performs security checks on an Ubuntu VPS, ensuring it follows
+# This script performs security checks on an Ubuntu/Debian VPS, ensuring it follows
 # good security practices. It checks for:
 #   * UFW firewall configuration
 #   * SSH hardening
@@ -10,14 +10,14 @@
 #   * Automatic updates
 #   * Fail2ban configuration
 #
-# Usage:
+# Usage:    
 #   Local reporting only:
 #     sudo ./audit.sh
 #   
 #   Report to remote service:
 #     sudo SESSION=<session-id> ./audit.sh
 #
-# Note: Script must be run with sudo privileges.
+# Note: Certain commands require sudo privileges.
 # When no SESSION is provided, results are only printed to terminal.
 # When SESSION is set, results are sent to API_ENDPOINT and also printed to terminal.
 # Each check's status (running/pass/fail/error) is reported progressively in both modes.
@@ -32,6 +32,49 @@ GREEN='\033[1;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[1;36m'
 NC='\033[0m' # No Color
+
+check_os() {
+    local os=""
+    if [ -f /etc/lsb-release ]; then
+        os="ubuntu"
+    elif [ -f /etc/debian_version ]; then
+        os="debian"
+    fi
+
+    if [ -z "$os" ]; then
+        echo -e "${RED}This script only supports Ubuntu/Debian systems. Exiting.${NC}"
+        echo "Please ensure you're running this script on a supported operating system."
+        exit 1
+    fi
+
+    echo -e "${GREEN}Detected supported OS: ${os}${NC}"
+}
+
+check_dependencies() {
+    echo -e "${CYAN}Checking required dependencies...${NC}"
+    
+    local required_commands=("curl" "jq" "systemctl" "apt-get")
+    local missing_commands=()
+
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_commands+=("$cmd")
+        fi
+    done
+
+    if [ ${#missing_commands[@]} -ne 0 ]; then
+        echo -e "${RED}The following required commands are missing:${NC}"
+        for cmd in "${missing_commands[@]}"; do
+            echo "  - $cmd"
+        done
+        echo
+        echo -e "${YELLOW}Please install these commands before running this script.{NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}All required dependencies are installed${NC}\n"
+    return 0
+}
 
 print_status() {
     local check_name="$1"
@@ -112,13 +155,6 @@ send_status() {
     fi
 }
 
-check_root() {
-    if [ "$EUID" -ne 0 ]; then
-        return 1
-    fi
-    return 0
-}
-
 check_ufw() {
     local check_name="ufw_security"
     local failed=false
@@ -135,7 +171,7 @@ check_ufw() {
     
     # Check if UFW is active
     if ! $failed; then
-        if ! ufw status | grep -q "Status: active"; then
+        if ! sudo ufw status | grep -q "Status: active"; then
             send_status "$check_name" "fail" "UFW is installed but not active" "active_status"
             failed=true
         else
@@ -148,7 +184,7 @@ check_ufw() {
     # Check default policies
     if ! $failed; then
         local default_incoming
-        if ! default_incoming=$(ufw status verbose | grep "Default:" | grep "incoming" | awk '{print $2}'); then
+        if ! default_incoming=$(sudo ufw status verbose | grep "Default:" | grep "incoming" | awk '{print $2}'); then
             send_status "$check_name" "error" "Failed to retrieve UFW default policy" "default_policy"
             failed=true
         elif [ "$default_incoming" != "deny" ]; then
@@ -219,7 +255,7 @@ check_ssh() {
             local actual
             
             # Get actual value, removing any leading whitespace and ignoring comments
-            actual=$(grep "^[[:space:]]*${key}[[:space:]]" "$config_file" | awk '{print $2}' | tail -n1)
+            actual=$(sudo grep "^[[:space:]]*${key}[[:space:]]" "$config_file" | awk '{print $2}' | tail -n1)
             
             if [ -z "$actual" ]; then
                 send_status "$check_name" "fail" "${key} is not set in sshd_config" "config_${key}"
@@ -234,7 +270,7 @@ check_ssh() {
         
         # Check SSH port
         local ssh_port
-        ssh_port=$(grep "^[[:space:]]*Port[[:space:]]" "$config_file" | awk '{print $2}')
+        ssh_port=$(sudo grep "^[[:space:]]*Port[[:space:]]" "$config_file" | awk '{print $2}')
         
         if [ -z "$ssh_port" ]; then
             send_status "$check_name" "fail" "SSH port is not explicitly set (defaults to 22)" "port"
@@ -447,58 +483,13 @@ check_fail2ban() {
     fi
 }
 
-# Helper functions for checking commands
-check_cmd() {
-   command -v "$1" > /dev/null 2>&1
-}
-
-need_cmd() {
-   if ! check_cmd "$1"; then
-       echo -e "${RED}Error: need '$1' (command not found)${NC}"
-       return 1
-   fi
-   return 0
-}
-
-check_dependencies() {
-   echo -e "${CYAN}Checking required dependencies...${NC}"
-   local failed=false
-
-   # Check for jq
-   if ! need_cmd "jq"; then
-       echo "Run: sudo apt-get install jq"
-       failed=true
-   fi
-
-   # Check for curl
-   if ! need_cmd "curl"; then
-       echo "Run: sudo apt-get install curl"
-       failed=true
-   fi
-
-   if $failed; then
-       echo -e "${RED}Please install the missing dependencies and try again${NC}"
-       exit 1
-   fi
-
-   echo -e "${GREEN}All required dependencies are installed${NC}\n"
-   return 0
-}
-
-
 main() {
-    # Check root before starting
-    if ! check_root; then
-        send_status "system" "error" "Root privileges required to run this script"
-        exit 1
-    fi
-
-    # Ensure we have required tools
+    check_os
     check_dependencies
   
     echo -e "${CYAN}Starting checks...${NC}"
-    if [ -n "${SESSION}" ]; then
-        echo -e "Session ID: ${SESSION}"
+    if [ -n "${SESSION:-}" ]; then
+        echo -e "Session ID: ${SESSION:-}"
     else
         echo -e "${YELLOW}Running in local mode (no SESSION provided)${NC}"
     fi
