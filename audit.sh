@@ -15,11 +15,11 @@
 #     sudo ./audit.sh
 #   
 #   Report to remote service:
-#     sudo SESSION=<session-id> ./audit.sh
+#     sudo ./audit.sh <session-id>
 #
 # Note: Certain commands require sudo privileges.
-# When no SESSION is provided, results are only printed to terminal.
-# When SESSION is set, results are sent to API_ENDPOINT and also printed to terminal.
+# When no session id is provided, results are only printed to terminal.
+# When session id is set, results are sent to API_ENDPOINT and also printed to terminal.
 # Each check's status (running/pass/fail/error) is reported progressively in both modes.
 
 set -u
@@ -27,6 +27,7 @@ set -u
 VERSION="0.1.0"
 API_ENDPOINT="http://127.0.0.1:8080/audit-step"
 CHECK_ID="$$" # Using just process ID as identifier
+SESSION="${1:-}" # Get first parameter or empty string if not provided
 
 RED='\033[1;31m'
 GREEN='\033[1;32m'
