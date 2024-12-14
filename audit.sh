@@ -1,6 +1,8 @@
 #!/bin/bash
-
-# audit.sh
+#
+# audit.sh 
+#
+# Author: Kyri (https://x.com/kkyrio)
 #
 # This script performs security checks on an Ubuntu/Debian VPS, ensuring it follows
 # good security practices. It checks for:
@@ -12,10 +14,10 @@
 #
 # Usage:    
 #   Local reporting only:
-#     sudo ./audit.sh
+#     ./audit.sh
 #   
 #   Report to remote service:
-#     sudo ./audit.sh <session-id>
+#     ./audit.sh <session-id>
 #
 # Note: Certain commands require sudo privileges.
 # When no session id is provided, results are only printed to terminal.
