@@ -190,13 +190,13 @@ check_ufw() {
     # Check if UFW is active
     if ! $failed; then
         if ! sudo ufw status | grep -q "Status: active"; then
-            send_status "$category" "fail" "UFW is installed but not active" "active_status"
+            send_status "$category" "fail" "UFW is not active" "active_status"
             failed=true
         else
             send_status "$category" "pass" "UFW is active" "active_status"
         fi
     else
-        send_status "$category" "skip" "Skipping check" "active_status"
+        send_status "$category" "skip" "UFW not installed - skipping" "active_status"
     fi
     
     # Check default policies
@@ -212,7 +212,7 @@ check_ufw() {
             send_status "$category" "pass" "Default incoming policy is properly set to deny" "default_policy"
         fi
     else
-        send_status "$category" "skip" "Skipping check" "default_policy"
+        send_status "$category" "skip" "UFW not active - skipping" "default_policy"
     fi
     
     # Final status
@@ -238,13 +238,13 @@ check_ssh() {
         send_status "$category" "pass" "SSH service is enabled" "service_status"
         ssh_enabled=true
     else
-        send_status "$category" "pass" "SSH service is disabled - no further checks needed" "service_status"
-        send_status "$category" "skip" "SSH disabled - skipping check" "key_auth"
-        send_status "$category" "skip" "SSH disabled - skipping check" "config_PermitRootLogin"
-        send_status "$category" "skip" "SSH disabled - skipping check" "config_ChallengeResponseAuthentication"
-        send_status "$category" "skip" "SSH disabled - skipping check" "config_PasswordAuthentication"
-        send_status "$category" "skip" "SSH disabled - skipping check" "config_UsePAM"
-        send_status "$category" "skip" "SSH disabled - skipping check" "port"
+        send_status "$category" "pass" "SSH service is disabled" "service_status"
+        send_status "$category" "skip" "SSH service disabled - skipping" "key_auth"
+        send_status "$category" "skip" "SSH service disabled - skipping" "config_PermitRootLogin"
+        send_status "$category" "skip" "SSH service disabled - skipping" "config_ChallengeResponseAuthentication"
+        send_status "$category" "skip" "SSH service disabled - skipping" "config_PasswordAuthentication"
+        send_status "$category" "skip" "SSH service disabled - skipping" "config_UsePAM"
+        send_status "$category" "skip" "SSH service disabled - skipping" "port"
         send_status "$category" "pass" "All SSH security checks passed"
         return 0
     fi
@@ -253,7 +253,7 @@ check_ssh() {
     if $ssh_enabled; then
         # Check if key-based auth is setup (look for authorized_keys)
         if ! find "$HOME/.ssh" -type f -name "authorized_keys" 2>/dev/null | grep -q .; then
-            send_status "$category" "fail" "No authorized_keys found in any home directory" "key_auth"
+            send_status "$category" "fail" "No authorized_keys found in home directory" "key_auth"
             final_status="fail"
         else
             send_status "$category" "pass" "Key-based authentication is set up" "key_auth"
@@ -339,20 +339,20 @@ check_non_root_user() {
             user_shell=$(getent passwd "$user" | cut -d: -f7)
             if [[ "$user_shell" != "/usr/sbin/nologin" && "$user_shell" != "/bin/false" ]]; then
                 valid_user_found=true
-                send_status "$category" "pass" "Found valid sudo user: $user" "sudo_access"
+                send_status "$category" "pass" "Found valid non-root sudo user" "sudo_access"
                 break
             fi
         done <<< "$privileged_users"
         
         if ! $valid_user_found; then
-            send_status "$category" "fail" "No sudo users found with valid login shell" "sudo_access"
+            send_status "$category" "fail" "No non-root sudo users found" "sudo_access"
             final_status="fail"
         fi
     fi
     
     # Final status
     if [ "$final_status" = "fail" ]; then
-        send_status "$category" "fail" "Non-root user check failed"
+        send_status "$category" "fail" "Non-root sudo user check failed"
         return 1
     else
         send_status "$category" "pass" "Valid non-root sudo user exists"
@@ -387,9 +387,9 @@ check_unattended_upgrades() {
 
    # Check if automatic updates are enabled in /etc/apt/apt.conf.d/20auto-upgrades
    if [ ! -f "$auto_upgrades_file" ]; then
-       send_status "$category" "fail" "Auto-upgrades configuration file not found" "config_file"
-       send_status "$category" "skip" "Config file not present - skipping check" "auto_update"
-       send_status "$category" "skip" "Config file not present - skipping check" "auto_update"
+       send_status "$category" "fail" "Auto-upgrades config file not found" "config_file"
+       send_status "$category" "skip" "Auto-upgrades file not present - skipping" "auto_update"
+       send_status "$category" "skip" "Auto-upgrades file not present - skipping" "auto_upgrade"
        final_status="fail"
    else
        send_status "$category" "pass" "Auto-upgrades configuration file exists" "config_file"
@@ -414,10 +414,10 @@ check_unattended_upgrades() {
 
    # Final status
    if [ "$final_status" = "fail" ]; then
-       send_status "$category" "fail" "Automatic upgrades check failed"
+       send_status "$category" "fail" "Some automatic upgrades check failed"
        return 1
    else
-       send_status "$category" "pass" "Automatic upgrades are properly configured"
+       send_status "$category" "pass" "All automatic upgrade checks passed"
        return 0
    fi
 }
@@ -487,24 +487,24 @@ check_fail2ban() {
                send_status "$category" "pass" "SSH jail is in aggressive mode" "ssh_jail_mode"
            fi
        else
-           send_status "$category" "skip" "jail.local missing - skipping jail configuration check" "ssh_jail_enabled"
-           send_status "$category" "skip" "jail.local missing - skipping jail configuration check" "ssh_jail_mode"
+           send_status "$category" "skip" "jail.local file not present - skipping" "ssh_jail_enabled"
+           send_status "$category" "skip" "jail.local file not present - skipping" "ssh_jail_mode"
        fi
     else
         # Skip all remaining checks if installation failed
-        send_status "$category" "skip" "fail2ban not installed - skipping check" "service_enabled"
-        send_status "$category" "skip" "fail2ban not installed - skipping check" "service_active"
-        send_status "$category" "skip" "fail2ban not installed - skipping check" "config_file"
-        send_status "$category" "skip" "fail2ban not installed - skipping check" "ssh_jail_enabled"
-        send_status "$category" "skip" "fail2ban not installed - skipping check" "ssh_jail_mode"
+        send_status "$category" "skip" "fail2ban not installed - skipping" "service_enabled"
+        send_status "$category" "skip" "fail2ban not installed - skipping" "service_active"
+        send_status "$category" "skip" "fail2ban not installed - skipping" "config_file"
+        send_status "$category" "skip" "fail2ban not installed - skipping" "ssh_jail_enabled"
+        send_status "$category" "skip" "fail2ban not installed - skipping" "ssh_jail_mode"
     fi
     
     # Final status
     if $failed; then
-        send_status "$category" "fail" "Fail2ban security checks failed"
+        send_status "$category" "fail" "Some fail2ban security checks failed"
         return 1
     else
-        send_status "$category" "pass" "Fail2ban is properly configured"
+        send_status "$category" "pass" "All fail2ban checks passed"
         return 0
     fi
 }
