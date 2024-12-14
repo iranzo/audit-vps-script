@@ -252,7 +252,7 @@ check_ssh() {
     # Only continue if SSH is enabled
     if $ssh_enabled; then
         # Check if key-based auth is setup (look for authorized_keys)
-        if ! find /home -type f -name "authorized_keys" 2>/dev/null | grep -q .; then
+        if ! find "$HOME/.ssh" -type f -name "authorized_keys" 2>/dev/null | grep -q .; then
             send_status "$category" "fail" "No authorized_keys found in any home directory" "key_auth"
             final_status="fail"
         else
