@@ -26,7 +26,7 @@ set -u
 
 VERSION="0.1.0"
 API_ENDPOINT="http://127.0.0.1:8080/audit-step"
-CHECK_ID="$$" # Using just process ID as identifier
+AUDIT_ID=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 10 | head -n 1)
 SESSION="${1:-}" # Get first parameter or empty string if not provided
 
 RED='\033[1;31m'
@@ -94,7 +94,7 @@ send_to_api() {
                 --arg status "$status" \
                 --arg msg "$message" \
                 --arg check "$check" \
-                --arg id "$CHECK_ID" \
+                --arg id "$AUDIT_ID" \
                 --arg version "$VERSION" \
                 '{session_id: $session, id: $id, category: $category, status: $status, message: $msg, check: $check, version: $version}')
         else
@@ -103,7 +103,7 @@ send_to_api() {
                 --arg category "$category" \
                 --arg status "$status" \
                 --arg msg "$message" \
-                --arg id "$CHECK_ID" \
+                --arg id "$AUDIT_ID" \
                 --arg version "$VERSION" \
                 '{session_id: $session, id: $id, category: $category, status: $status, message: $msg, version: $version}')
         fi
