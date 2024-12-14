@@ -27,7 +27,7 @@
 set -u
 
 VERSION="0.1.0"
-API_ENDPOINT="https://auditvps.com/audit-step"
+API_ENDPOINT="https://api.auditvps.com/audit-step"
 AUDIT_ID=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 10 | head -n 1)
 SESSION="${1:-}" # Get first parameter or empty string if not provided
 
