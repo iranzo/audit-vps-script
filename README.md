@@ -70,10 +70,10 @@ MIT
 
 ## Roadmap
 
-- [] Support for additional Linux distributions:
-  - [] RHEL/CentOS
-  - [] Fedora
-  - [] Alpine Linux
-- [] Removal of `jq` dependency
-- [] Warning states (WARN) for non-critical security recommendations
-- [] Code refactoring to improve readability
+- [ ] Support for additional Linux distributions:
+  - [ ] RHEL/CentOS
+  - [ ] Fedora
+  - [ ] Alpine Linux
+- [ ] Removal of `jq` dependency
+- [ ] Warning states (WARN) for non-critical security recommendations
+- [ ] Code refactoring to improve readability
