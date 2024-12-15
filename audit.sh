@@ -1,5 +1,27 @@
 #!/bin/bash
 #
+# MIT License
+
+# Copyright (c) 2024 Kyriacos Kyriacou (@kkyrio)
+
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
 # audit.sh 
 #
 # Author: Kyri (https://x.com/kkyrio)
@@ -26,7 +48,7 @@
 
 set -u
 
-VERSION="0.1.0"
+VERSION="0.2.0"
 API_ENDPOINT="https://api.auditvps.com/audit-step"
 AUDIT_ID=$(tr -dc 'a-zA-Z0-9' < /dev/urandom | fold -w 10 | head -n 1)
 SESSION="${1:-}" # Get first parameter or empty string if not provided
@@ -229,7 +251,6 @@ check_ssh() {
     local category="ssh_security"
     local final_status="pass"
     local ssh_enabled=false
-    local config_file="/etc/ssh/sshd_config"
     
     send_status "$category" "running" "Starting SSH security check"
 
@@ -262,7 +283,7 @@ check_ssh() {
         # Check SSH config settings
         local config_checks=(
             "PermitRootLogin no"
-            "ChallengeResponseAuthentication no"
+            "KbdInteractiveAuthentication no"
             "PasswordAuthentication no"
             "UsePAM no"
         )
@@ -272,11 +293,11 @@ check_ssh() {
             local expected="${check#* }" # Get the value part (after the space)
             local actual
             
-            # Get actual value, removing any leading whitespace and ignoring comments
-            actual=$(sudo grep "^[[:space:]]*${key}[[:space:]]" "$config_file" | awk '{print $2}' | tail -n1)
+            # Get actual value from sshd -T output
+            actual=$(sudo sshd -T | grep -i "^${key}" | awk '{print $2}')
             
             if [ -z "$actual" ]; then
-                send_status "$category" "fail" "${key} is not set in sshd_config" "config_${key}"
+                send_status "$category" "fail" "${key} is not configured" "config_${key}"
                 final_status="fail"
             elif [ "$actual" != "$expected" ]; then
                 send_status "$category" "fail" "${key} is set to '$actual' (should be '$expected')" "config_${key}"
@@ -287,18 +308,19 @@ check_ssh() {
         done
         
         # Check SSH port
-        local ssh_port
-        ssh_port=$(sudo grep "^[[:space:]]*Port[[:space:]]" "$config_file" | awk '{print $2}')
+        # Disabled for now as listening on port 22 is not a security issue - might turn this into a warning at some point
+        # local ssh_port
+        # ssh_port=$(sudo sshd -T | grep -i "^port" | awk '{print $2}')
         
-        if [ -z "$ssh_port" ]; then
-            send_status "$category" "fail" "SSH port is not explicitly set (defaults to 22)" "port"
-            final_status="fail"
-        elif [ "$ssh_port" = "22" ]; then
-            send_status "$category" "fail" "SSH is using the standard port (22)" "port"
-            final_status="fail"
-        else
-            send_status "$category" "pass" "SSH is using non-standard port ${ssh_port}" "port"
-        fi
+        # if [ -z "$ssh_port" ]; then
+        #     send_status "$category" "fail" "SSH port is not explicitly set (defaults to 22)" "port"
+        #     final_status="fail"
+        # elif [ "$ssh_port" = "22" ]; then
+        #     send_status "$category" "fail" "SSH is using the standard port (22)" "port"
+        #     final_status="fail"
+        # else
+        #     send_status "$category" "pass" "SSH is using non-standard port ${ssh_port}" "port"
+        # fi
     fi
     
     # Final status
