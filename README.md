@@ -1,6 +1,6 @@
 # audit-vps-script
 
-Run your Virtual Private Server (VPS) in production with confidence. AuditVPS helps you identify and fix common security vulnerabilities in your server through automated security auditing.
+Scans your server to find common issues like weak SSH settings, missing firewalls, lack of updates, and more. Perfect for getting your VPS ready for production.
 
 ![Output](./img/output.png)
 
@@ -24,7 +24,7 @@ $ chmod +x audit-vps.ch
 $ sudo ./audit-vps.sh
 ```
 
-### Web version
+### Web
 
 Visit [https://auditpvps.com](https://auditvps.com) to run checks through our web app for free and render the results in your browser.
 
