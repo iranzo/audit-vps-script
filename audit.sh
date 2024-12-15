@@ -72,7 +72,7 @@ check_dependencies() {
             echo "  - $cmd"
         done
         echo
-        echo -e "${YELLOW}Please install these commands before running this script.{NC}"
+        echo -e "${YELLOW}Please install these commands before running this script.${NC}"
         exit 1
     fi
 
